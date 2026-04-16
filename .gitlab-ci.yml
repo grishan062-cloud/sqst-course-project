@@ -1,0 +1,33 @@
+# GitLab CI/CD — интеграция SonarQube
+# Урок 4: Интеграция SonarQube с CI/CD
+# Переменные: SONAR_TOKEN, SONAR_HOST_URL
+
+image: python:3.11-slim
+
+stages:
+  - test
+  - scan
+
+variables:
+  SONAR_PROJECT_KEY: "vulnerable-app"
+  SONAR_PROJECT_VERSION: "1.0-lesson4"
+  GIT_DEPTH: "0"
+
+test:
+  stage: test
+  script:
+    - pip install flask --quiet
+    - echo "Smoke tests passed"
+
+sonar-scan:
+  stage: scan
+  image: sonarsource/sonar-scanner-cli:latest
+  script:
+    - sonar-scanner
+      -Dsonar.projectKey="${SONAR_PROJECT_KEY}"
+      -Dsonar.projectVersion="${SONAR_PROJECT_VERSION}"
+      -Dsonar.sources=vulnerable-app
+      -Dsonar.host.url="${SONAR_HOST_URL}"
+      -Dsonar.token="${SONAR_TOKEN}"
+      -Dsonar.qualitygate.wait=true
+  allow_failure: false

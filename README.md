@@ -1,14 +1,17 @@
-# Урок 3: Основы SAST, OWASP Top 10 и Secure SDLC
+# Урок 4: Интеграция SonarQube с CI/CD (GitLab, Jenkins)
 
 ## Что добавлено в этом уроке
 
-Новых файлов не добавлено. Этот урок сосредоточен на концептуальном изучении OWASP Top 10 и их взаимосвязи с обнаруженными уязвимостями.
+| Файл | Описание |
+|------|---------|
+| `Jenkinsfile` | Конфигурация Jenkins pipeline для автоматизированного сканирования |
 
 ## Структура проекта
 
 ```
 github_project/
 ├── docker-compose.yml
+├── Jenkinsfile
 ├── setup-check.sh
 ├── scan.sh
 ├── sonar-project.properties
@@ -52,6 +55,7 @@ github_project/
 | 1 | Введение в SonarQube и его роль в безопасности | docker-compose.yml, setup-check.sh, sonar-project.properties, vulnerable-app/app.py |
 | 2 | Быстрый старт: установка SonarQube и локальное сканирование | scan.sh, vulnerable-app/utils.py |
 | 3 | Основы SAST, OWASP Top 10 и Secure SDLC | (без новых файлов) |
+| 4 | Интеграция SonarQube с CI/CD (GitLab, Jenkins) | Jenkinsfile |
 
 ## Требования
 
@@ -59,7 +63,9 @@ github_project/
 - **Оперативная память**: минимум 4GB, рекомендуется 8GB
 - **Свободное место на диске**: минимум 5GB
 - **Порт 9000** должен быть свободен для SonarQube
+- **Jenkins** или **GitLab CI** для использования pipeline конфигураций
 
-## Описание темы
+## Описание компонентов
 
-В этом уроке рассматриваются основные принципы SAST (Static Application Security Testing), анализируется как OWASP Top 10 уязвимости обнаруживаются SonarQube, и как интегрировать проверки безопасности в цикл разработки.
+### Jenkinsfile
+Декларативная Jenkins pipeline для автоматизированного запуска сканирования SonarQube при каждом коммите, с интеграцией в CI/CD процесс.

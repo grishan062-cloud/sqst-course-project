@@ -1,8 +1,0 @@
-# A06 Vulnerable and Outdated Components
-# Намеренно устаревшие версии с известными CVE — для демонстрации.
-# SonarQube CE сам не сверяет версии с CVE-базой (это делает OWASP Dependency-Check).
-Flask==1.0.0
-Werkzeug==0.14.1
-requests==2.19.0
-PyYAML==3.13
-Jinja2==2.10
