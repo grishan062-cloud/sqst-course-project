@@ -1,55 +1,37 @@
 """
 vulnerable-app/app.py — Учебное веб-приложение с намеренными уязвимостями
 ==========================================================================
-Курс OTUS DevSecOps: SonarQube от А до Я
-Урок 2: Быстрый старт — установка и первое сканирование
+Курс OTUS: Безопасный код с SonarQube (Community Edition)
+Урок 3 — OWASP Top 10 2021
 
-ВНИМАНИЕ: Этот код содержит НАМЕРЕННЫЕ уязвимости для учебных целей.
-НЕ используйте этот код в production-окружении!
-
-Уязвимости, детектируемые SonarQube Community Edition:
-  ├── VULNERABILITY:
-  │   ├── Hard-coded credentials (S2068/S6418, CWE-798) — пароли/токены в коде
-  │   └── Binding 0.0.0.0 (S8392) — доступ со всех интерфейсов
-  ├── SECURITY HOTSPOT:
-  │   ├── CSRF disabled (S4502) — Flask без CSRF-защиты
-  │   ├── Weak hashing (S4790) — MD5 хеширование
-  │   └── Debug mode (S4507) — debug=True в production
-  └── НЕ детектируемые CE (нужен Enterprise для taint analysis):
-      ├── SQL Injection (CWE-89)
-      ├── Command Injection (CWE-78)
-      └── Path Traversal (CWE-22)
+ВНИМАНИЕ: код содержит НАМЕРЕННЫЕ уязвимости. Не для production.
 """
 
 import os
+import pickle
 import sqlite3
 import subprocess
 import hashlib
-from flask import Flask, request, jsonify
+import secrets
+import requests
+from flask import Flask, request, jsonify, make_response
 
 app = Flask(__name__)
 
-# =============================================================================
-# УЯЗВИМОСТЬ 1: Hard-coded credentials (CWE-798)
-# SonarQube CE: S2068 — "Credentials should not be hard-coded"
-# CE ловит переменные с "password"/"passwd"/"secret" в имени,
-# а также пароли внутри connection string и известные форматы ключей
-# =============================================================================
-DB_PASSWORD = "admin123"          # S2068: пароль в коде
-SECRET_KEY  = "mysecretkey12345"  # УЯЗВИМОСТЬ: секрет (CE может не поймать)
-API_TOKEN   = "tok_prod_abc123xyz" # УЯЗВИМОСТЬ: токен (CE может не поймать)
-DATABASE_URL = "postgresql://admin:P@ssw0rd@db:5432/prod"  # S6418: креды в connection string
+
+# ── A02 Cryptographic Failures — Hard-coded credentials (CWE-798) ────
+DB_PASSWORD = "admin123"
+SECRET_KEY  = "mysecretkey12345"
+API_TOKEN   = "tok_prod_abc123xyz"
 
 
 def get_db_connection():
-    """Создаёт подключение к базе данных."""
     conn = sqlite3.connect("users.db")
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db():
-    """Инициализирует базу данных с тестовыми данными."""
     conn = get_db_connection()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
@@ -59,32 +41,23 @@ def init_db():
             role TEXT
         )
     """)
+    conn.execute("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, user_id INTEGER, item TEXT)")
     conn.execute("INSERT OR IGNORE INTO users VALUES (1,'admin','admin123','admin')")
     conn.execute("INSERT OR IGNORE INTO users VALUES (2,'alice','pass456','user')")
+    conn.execute("INSERT OR IGNORE INTO orders VALUES (1, 2, 'book')")
     conn.commit()
     conn.close()
 
 
-# =============================================================================
-# УЯЗВИМОСТЬ 2: SQL Injection (CWE-89)
-# CE: НЕ детектируется (нужен taint analysis → Enterprise Edition)
-# CE увидит только S2077 (SQL formatting) как Security Hotspot
-# =============================================================================
+# ── A03 Injection — SQL Injection (CWE-89) ──────────────────────────
 @app.route("/login", methods=["POST"])
 def login():
-    """
-    Небезопасная аутентификация — уязвима к SQL Injection.
-
-    Пример атаки: username = "admin' --"
-    Запрос становится: SELECT * FROM users WHERE username='admin' --' AND password='...'
-    """
     username = request.form.get("username", "")
     password = request.form.get("password", "")
 
     conn = get_db_connection()
-    # УЯЗВИМОСТЬ: строковая конкатенация в SQL-запросе
     query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
-    user = conn.execute(query).fetchone()  # SQL INJECTION!
+    user = conn.execute(query).fetchone()
     conn.close()
 
     if user:
@@ -92,73 +65,100 @@ def login():
     return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
 
-# =============================================================================
-# УЯЗВИМОСТЬ 3: Command Injection (CWE-78)
-# CE: НЕ детектируется (нужен taint analysis → Enterprise Edition)
-# CE увидит S4721 (OS command execution) как Code Smell
-# =============================================================================
+# ── A03 Injection — Command Injection (CWE-78) ──────────────────────
 @app.route("/ping", methods=["GET"])
 def ping():
-    """
-    Небезопасный пинг — уязвим к Command Injection.
-
-    Пример атаки: host = "8.8.8.8; cat /etc/passwd"
-    """
     host = request.args.get("host", "localhost")
-    # УЯЗВИМОСТЬ: пользовательский ввод передаётся напрямую в shell
-    result = subprocess.check_output(f"ping -c 1 {host}", shell=True)  # CMD INJECTION!
+    result = subprocess.check_output(f"ping -c 1 {host}", shell=True)
     return result.decode()
 
 
-# =============================================================================
-# УЯЗВИМОСТЬ 4: Path Traversal (CWE-22)
-# CE: НЕ детектируется (нужен taint analysis → Enterprise Edition)
-# =============================================================================
+# ── A05 Security Misconfiguration — Path Traversal (CWE-22) ─────────
 @app.route("/file", methods=["GET"])
 def read_file():
-    """
-    Небезопасное чтение файлов — уязвимо к Path Traversal.
-
-    Пример атаки: filename = "../../etc/passwd"
-    """
     filename = request.args.get("filename", "readme.txt")
     base_dir = "/var/app/files"
-    # УЯЗВИМОСТЬ: нет валидации пути
-    filepath = os.path.join(base_dir, filename)  # PATH TRAVERSAL!
+    filepath = os.path.join(base_dir, filename)
     with open(filepath) as f:
         return f.read()
 
 
-# =============================================================================
-# УЯЗВИМОСТЬ 5: Weak Cryptography (CWE-326 / CWE-327)
-# CE: S4790 — детектируется как Security Hotspot (не Vulnerability)
-# =============================================================================
+# ── A02 Cryptographic Failures — Weak Hash (CWE-327) ────────────────
 def hash_password(password: str) -> str:
-    """
-    Небезопасное хеширование — использует MD5 без соли.
-    MD5 считается криптографически слабым с 1996 года.
-    """
-    # УЯЗВИМОСТЬ: MD5 слаб, нет соли
-    return hashlib.md5(password.encode()).hexdigest()  # WEAK CRYPTO!
+    return hashlib.md5(password.encode()).hexdigest()
 
 
-# =============================================================================
-# ЧИСТЫЙ КОД ДЛЯ СРАВНЕНИЯ: Правильный способ хеширования
-# =============================================================================
-import secrets
+# ── A01 Broken Access Control — /admin без авторизации ───────────────
+@app.route("/admin", methods=["GET"])
+def admin_panel():
+    return jsonify({"users": ["admin", "alice"], "secret": SECRET_KEY})
 
+
+# ── A01 Broken Access Control — IDOR (CWE-639) ──────────────────────
+@app.route("/user/<int:user_id>/orders", methods=["GET"])
+def user_orders(user_id):
+    conn = get_db_connection()
+    rows = conn.execute(f"SELECT * FROM orders WHERE user_id={user_id}").fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+# ── A04 Insecure Design — сброс пароля без токена (CWE-640) ─────────
+@app.route("/reset-password", methods=["POST"])
+def reset_password():
+    email = request.form.get("email", "")
+    new_password = request.form.get("new_password", "")
+    conn = get_db_connection()
+    conn.execute(f"UPDATE users SET password='{new_password}' WHERE username='{email}'")
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
+
+
+# ── A07 Auth Failures — предсказуемый session_id (CWE-330) ──────────
+@app.route("/issue-session/<int:user_id>", methods=["GET"])
+def issue_session(user_id):
+    session_id = str(user_id)
+    resp = make_response(jsonify({"session": session_id}))
+    resp.set_cookie("sid", session_id)
+    return resp
+
+
+# ── A08 Software & Data Integrity — pickle.loads (CWE-502) ──────────
+@app.route("/load-state", methods=["POST"])
+def load_state():
+    obj = pickle.loads(request.data)
+    return jsonify({"loaded": str(obj)[:100]})
+
+
+# ── A09 Logging & Monitoring Failures — нет аудита (CWE-778) ────────
+@app.route("/delete-account/<int:user_id>", methods=["POST"])
+def delete_account(user_id):
+    conn = get_db_connection()
+    try:
+        conn.execute(f"DELETE FROM users WHERE id={user_id}")
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
+    return jsonify({"status": "ok"})
+
+
+# ── A10 SSRF — Server-Side Request Forgery (CWE-918) ────────────────
+@app.route("/fetch", methods=["GET"])
+def fetch_url():
+    url = request.args.get("url", "")
+    r = requests.get(url, timeout=5)
+    return r.text
+
+
+# ── Безопасный пример: хеширование (для сравнения) ───────────────────
 def hash_password_secure(password: str) -> str:
-    """
-    БЕЗОПАСНЫЙ вариант: bcrypt или argon2 с солью.
-    Показываем студентам — вот как надо!
-    """
-    import hashlib
     salt = secrets.token_hex(16)
-    # Используем SHA-256 с солью (в реальном коде — bcrypt/argon2)
     return hashlib.sha256((salt + password).encode()).hexdigest() + ":" + salt
 
 
 if __name__ == "__main__":
     init_db()
-    # УЯЗВИМОСТЬ: debug=True в production раскрывает трассировки ошибок
     app.run(host="0.0.0.0", port=5000, debug=True)
