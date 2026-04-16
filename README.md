@@ -1,11 +1,10 @@
-# Урок 8: Анализ разных языков и фреймворков
+# Урок 9: Анализ open-source компонентов и зависимостей
 
 ## Что добавлено в этом уроке
 
 | Файл | Описание |
 |------|---------|
-| `frontend/app.js` | Frontend приложение на JavaScript |
-| `frontend/sonar-project.properties` | Конфигурация SonarQube для frontend части |
+| `vulnerable-app/requirements.txt` | Файл зависимостей Python с известными CVE |
 
 ## Структура проекта
 
@@ -25,6 +24,7 @@ github_project/
 │   └── sonar-project.properties
 └── vulnerable-app/
     ├── app.py
+    ├── requirements.txt
     └── utils.py
 ```
 
@@ -73,6 +73,7 @@ github_project/
 | 6 | False Positive / False Negative: системный подход | fp-analysis.md |
 | 7 | Security Hotspots и митигация уязвимостей | hotspot-review.md |
 | 8 | Анализ разных языков и фреймворков | frontend/app.js, frontend/sonar-project.properties |
+| 9 | Анализ open-source компонентов и зависимостей | vulnerable-app/requirements.txt |
 
 ## Требования
 
@@ -83,8 +84,5 @@ github_project/
 
 ## Описание компонентов
 
-### frontend/app.js
-Frontend приложение на JavaScript, демонстрирующее уязвимости, специфичные для этого языка (например, injection, XSS).
-
-### frontend/sonar-project.properties
-Конфигурация SonarQube специально для JavaScript/frontend части проекта с соответствующими правилами и исключениями.
+### vulnerable-app/requirements.txt
+Файл зависимостей Python проекта, содержащий версии пакетов с известными CVE (Common Vulnerabilities and Exposures) для демонстрации возможностей SonarQube в анализе уязвимостей в open-source компонентах.

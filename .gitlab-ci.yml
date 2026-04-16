@@ -1,22 +1,38 @@
-# GitLab CI/CD — мультиязычный анализ SonarQube
-# Урок 8: Python + JavaScript
+# GitLab CI/CD — SonarQube + OWASP Dependency-Check
+# Урок 9: Анализ зависимостей в CI/CD
 
 image: python:3.11-slim
 
 stages:
   - test
+  - dependency-check
   - scan
 
 variables:
   SONAR_PROJECT_KEY: "vulnerable-app"
-  SONAR_PROJECT_VERSION: "1.0-lesson8"
+  SONAR_PROJECT_VERSION: "1.0-lesson9"
   GIT_DEPTH: "0"
 
 test:
   stage: test
   script:
-    - pip install flask --quiet
     - echo "Tests passed"
+
+# Анализ зависимостей на известные CVE
+owasp-dependency-check:
+  stage: dependency-check
+  image: owasp/dependency-check:latest
+  script:
+    - /usr/share/dependency-check/bin/dependency-check.sh
+      --project "vulnerable-app"
+      --scan vulnerable-app/requirements.txt
+      --format JSON
+      --out dependency-check-report.json
+      --failOnCVSS 7
+  artifacts:
+    paths:
+      - dependency-check-report.json
+    when: always
 
 sonar-scan:
   stage: scan
