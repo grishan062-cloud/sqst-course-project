@@ -1,11 +1,10 @@
-# Урок 5: Кастомизация Quality Gate, правил и работа с замечаниями
+# Урок 6: False Positive / False Negative: системный подход
 
 ## Что добавлено в этом уроке
 
 | Файл | Описание |
 |------|---------|
-| `quality-gate.json` | Конфигурация Quality Gate с критериями прохождения |
-| `setup-quality-gate.sh` | Скрипт для установки Quality Gate в SonarQube |
+| `fp-analysis.md` | Документ с анализом ложных срабатываний и пропущенных проблем |
 
 ## Структура проекта
 
@@ -13,6 +12,7 @@
 github_project/
 ├── docker-compose.yml
 ├── Jenkinsfile
+├── fp-analysis.md
 ├── quality-gate.json
 ├── setup-check.sh
 ├── setup-quality-gate.sh
@@ -65,6 +65,7 @@ github_project/
 | 3 | Основы SAST, OWASP Top 10 и Secure SDLC | (без новых файлов) |
 | 4 | Интеграция SonarQube с CI/CD (GitLab, Jenkins) | Jenkinsfile |
 | 5 | Кастомизация Quality Gate, правил и работа с замечаниями | quality-gate.json, setup-quality-gate.sh |
+| 6 | False Positive / False Negative: системный подход | fp-analysis.md |
 
 ## Требования
 
@@ -75,8 +76,5 @@ github_project/
 
 ## Описание компонентов
 
-### quality-gate.json
-Конфигурация Quality Gate с условиями, определяющими когда проект считается прошедшим проверку безопасности. Включает пороги для критичности, покрытия кода и других метрик.
-
-### setup-quality-gate.sh
-Скрипт для автоматической загрузки и применения Quality Gate конфигурации к проекту в SonarQube.
+### fp-analysis.md
+Подробное руководство по идентификации и обработке ложных положительных результатов (False Positives) и пропущенных проблем (False Negatives) в результатах SonarQube сканирования. Включает стратегии для улучшения качества сканирования и управления техническим долгом.
