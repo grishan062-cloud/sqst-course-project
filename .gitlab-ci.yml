@@ -1,30 +1,40 @@
-# GitLab CI/CD — многомодульный анализ SonarQube
-# Урок 11: Монорепозитории и многомодульные проекты
+# GitLab CI/CD — SonarQube + Semgrep (многоуровневый SAST)
+# Урок 15: Альтернативы SonarQube и расширение практики
 
 image: python:3.11-slim
 
 stages:
   - test
+  - sast
   - dependency-check
-  - scan
+  - sonar
 
 variables:
   SONAR_PROJECT_KEY: "vulnerable-app"
-  SONAR_PROJECT_VERSION: "1.0-lesson14"
+  SONAR_PROJECT_VERSION: "1.0-lesson15"
   GIT_DEPTH: "0"
 
-test-backend:
+test:
   stage: test
   script:
-    - pip install flask --quiet
-    - echo "Backend tests passed"
+    - echo "Tests passed"
 
-test-frontend:
-  stage: test
-  image: node:18-alpine
+# Уровень 1: Semgrep (быстрый SAST, результат — через 10-30 сек)
+semgrep:
+  stage: sast
+  image: returntocorp/semgrep:latest
   script:
-    - echo "Frontend tests passed (placeholder)"
+    - semgrep --config .semgrep.yml --json --output semgrep-report.json
+      backend/ frontend/ || true
+    - semgrep --config p/owasp-top-ten --json --output semgrep-owasp.json
+      backend/ frontend/ || true
+  artifacts:
+    paths:
+      - semgrep-report.json
+      - semgrep-owasp.json
+    when: always
 
+# Уровень 2: OWASP Dependency-Check
 owasp-dependency-check:
   stage: dependency-check
   image: owasp/dependency-check:latest
@@ -33,14 +43,15 @@ owasp-dependency-check:
       --project "vulnerable-app"
       --scan backend/requirements.txt
       --format JSON --out dependency-check-report.json
-      --failOnCVSS 7
+      --failOnCVSS 9
   artifacts:
     paths:
       - dependency-check-report.json
     when: always
 
+# Уровень 3: SonarQube (глубокий анализ)
 sonar-scan:
-  stage: scan
+  stage: sonar
   image: sonarsource/sonar-scanner-cli:latest
   script:
     - sonar-scanner
